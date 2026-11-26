@@ -1,6 +1,6 @@
 # Interface contract: what a brain sees, what it may command, and how time passes
 
-**Status: proposal, wire 1.0.** It becomes `frozen v1` through the board item `contract-interface`. After the freeze, a change needs a new contract item and follows the rules in section 7.
+**Status: frozen v1** (wire 1.0), 2026-11-26. A change needs a new contract item and follows the rules in section 7.
 
 **What the code does today:** the registered tasks speak only R1, with the privileged `policy` observation, as the [task cards](tasks.md) describe. The layouts below are defined and tested in [`solarbench/wire.py`](../solarbench/wire.py); no task uses them yet.
 

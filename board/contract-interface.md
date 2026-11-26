@@ -6,7 +6,7 @@ milestone: v1
 priority: core
 needs: none
 size: small
-status: doing
+status: done
 owner: spartacosan
 depends_on: []
 touches:
@@ -37,3 +37,4 @@ The sim and agents tracks work in parallel against `docs/interface.md`. It must 
   | command buffer, depth 1 | 1,056 | 0.9 µs | 1.1 µs | not measured |
 
   Checking a command buffer for unknown opcodes and non-finite arguments took 28 µs. The in-process path (arrays passed by reference) was not timed: it does no work. Not measured: a GPU tensor crossing to another process, which adds a device-to-host copy.
+- 2026-11-26, spartacosan: frozen as v1 (wire 1.0).
