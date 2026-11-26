@@ -44,3 +44,17 @@ def test_next_lists_only_what_can_be_started_with_the_compute_at_hand():
                                   it("d", "cpu", "small", deps=["a"]), it("e", "none", "small", status="done"))}
     rows = board.startable(items, {"c": items["c"]}, {"none", "cpu"}, set(board.SIZES))
     assert [r["id"] for r in rows] == ["a"]  # b needs a GPU, c is claimed, d waits on a, e is done
+
+
+PULLS = [{"number": 7, "branch": "eval-margin", "author": "b"}, {"number": 4, "branch": "eval-margin", "author": "a"},
+         {"number": 5, "branch": "some-fix", "author": "c"}]
+
+
+def test_the_earliest_pull_request_named_after_an_item_holds_it():
+    held = board.pull_claims(PULLS, {"eval-margin", "atlas-coverage"})
+    assert list(held) == ["eval-margin"] and held["eval-margin"]["number"] == 4
+
+
+def test_a_later_pull_request_for_a_held_item_is_told_who_holds_it():
+    assert board.earlier_claim(PULLS, "eval-margin", 7)["author"] == "a"
+    assert board.earlier_claim(PULLS, "eval-margin", 4) is None

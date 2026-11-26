@@ -42,19 +42,19 @@ done_when: [...]                # commands that pass, or observations a reviewer
 **Open items** start with an empty `touches`. Whoever takes one fills it in as the first step, and splits the work into smaller items if it is large.
 
 ## Rules
-1. **Claim before you start.** Create a branch named exactly after the item id, set `status: doing` and `owner:` in the item's file, commit that as `board: claim <id>`, and push the branch. The remote holds one branch of that name, so the push is the lock: if it is rejected, someone else has the item. Then run `python tools/board.py check`.
+1. **Claim before you start.** Fork the repository, create a branch named exactly after the item id, set `status: doing` and `owner:` in the item's file, commit that as `board: claim <id>`, push it to your fork and open a draft pull request. The earliest open pull request for an item holds it; a later one fails its check and is told who does. Then run `python tools/board.py check`.
    ```bash
    git switch -c sim-obs-channels origin/main
    # edit board/sim-obs-channels.md: status: doing, owner: <you>
-   git commit -am "board: claim sim-obs-channels" && git push -u origin sim-obs-channels
+   git commit -am "board: claim sim-obs-channels" && git push -u <your fork> sim-obs-channels
    ```
-   Without write access: clone this repository so that `origin` points here, create the branch named after the item, push it to your fork, and open a draft pull request. The tool does not see forks yet (item `infra-fork-claims`), so the maintainer confirms the claim on the pull request.
+   Keep `origin` pointing at this repository, so the tool sees everyone's claims. With write access you may push the branch here instead.
 2. **Stay inside `touches`.** The branch may change only the paths its item lists, its own board file, and the append-only files. `python tools/board.py diff` checks this and runs on every pull request. If the work needs another path, add it to `touches` on your branch and push; the overlap check will say if someone else holds it.
 3. **Two claimed items never share a path.** `check` enforces it. If two pieces of work need the same file, make one depend on the other.
-4. **Done means `done_when` passes.** The pull request sets `status: done` (a repeating item goes back to `todo`), quotes the output of each `done_when` line, and is reviewed by a person who did not write it. Merging deletes the branch, which releases the lock. `main` never carries `status: doing`.
+4. **Done means `done_when` passes.** The pull request sets `status: done` (a repeating item goes back to `todo`), quotes the output of each `done_when` line, and is reviewed by a person who did not write it. Merging or closing the pull request releases the item. `main` never carries `status: doing`.
 5. **Blocked is a status, not a silence.** Set `status: blocked`, say why in the log, and name what would unblock it.
 6. **New work gets a new item.** Found a bug or a gap outside your item? Add a `todo` item for it in a pull request of its own. Do not fix it in passing. A branch that changes only files under `board/` needs no claim.
-7. **Releasing a claim.** Delete the remote branch (`git push origin --delete <id>`). If something was learned, put it in the item's log through a small pull request.
+7. **Releasing a claim.** Close the pull request. If something was learned, put it in the item's log through a small pull request.
 
 ## Append-only files
 `ASSUMPTIONS.md`, `solarbench/tasks/__init__.py` and `docs/tasks.md` are extended by many items. Add lines or sections; never reorder or rewrite what is there as part of other work.

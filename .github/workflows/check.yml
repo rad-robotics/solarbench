@@ -5,6 +5,8 @@ on:
 jobs:
   check:
     runs-on: ubuntu-latest
+    env:
+      GITHUB_TOKEN: ${{ github.token }}  # read-only; lets the board tool list open pull requests
     steps:
       - uses: actions/checkout@v4
         with:

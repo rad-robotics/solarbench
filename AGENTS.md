@@ -15,7 +15,7 @@ SolarBench measures how well a robot body and the model controlling it do contac
 
 ## How to work
 1. Run `python tools/board.py next`. It lists the items that can be started on this machine: not yet claimed, everything they depend on done, and within the compute you have. Take one, or add one.
-2. Claim it as [board/README.md](board/README.md) describes: push a branch named after the item. One item, one branch, one pull request. Never push to `main`.
+2. Claim it as [board/README.md](board/README.md) describes: a branch named after the item, opened as a draft pull request. One item, one branch, one pull request.
 3. Change only the paths in the item's `touches`. If you find something else that needs doing, add an item; do not fix it in passing.
 4. Run `tools/check.sh` before asking for review, and `tools/check.sh --gpu` if you touched anything a simulation depends on. Quote the output in the pull request.
 5. A person who did not write the change reviews it. An agent's work is owned by the person who started the agent.

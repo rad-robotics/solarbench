@@ -8,8 +8,9 @@
     python tools/board.py diff [--base origin/main] [--item ID ...]
                                           fail if the branch changes files outside its item's `touches`
 
-An item is claimed by pushing a branch named exactly after its id: the remote accepts one branch of that name,
-so the push is the lock. Claims are read from the remote's branches; pass --offline to skip the fetch.
+An item is claimed by a branch named exactly after its id: pushed here by someone with write access, or opened
+as a pull request from a fork. The earliest holds it. Claims are read from the remote's branches and its open
+pull requests; pass --offline to skip both.
 The protocol is in board/README.md. Needs only PyYAML.
 """
 
@@ -17,9 +18,12 @@ from __future__ import annotations
 
 import argparse
 import fnmatch
+import json
 import os
+import re
 import subprocess
 import sys
+import urllib.request
 from pathlib import Path
 
 import yaml
@@ -66,8 +70,47 @@ def current_branch() -> str:
             or git("branch", "--show-current").stdout.strip())
 
 
-def claims(items: dict[str, dict], offline: bool = False) -> dict[str, dict]:
-    """Claimed items: those with a remote branch named after them, plus the current branch's own item.
+def remote_slug() -> str | None:
+    url = git("remote", "get-url", "origin").stdout.strip()
+    found = re.search(r"github\.com[:/]([^/\s]+/[^/\s]+?)(?:\.git)?$", url)
+    return found.group(1) if found else None
+
+
+def open_pulls(slug: str | None) -> list[dict]:
+    """Open pull requests on the host, as number, branch and author. Empty when it cannot be reached."""
+    if not slug:
+        return []
+    request = urllib.request.Request(f"https://api.github.com/repos/{slug}/pulls?state=open&per_page=100",
+                                     headers={"Accept": "application/vnd.github+json"})
+    token = os.environ.get("GITHUB_TOKEN") or os.environ.get("GH_TOKEN")
+    if token:
+        request.add_header("Authorization", f"Bearer {token}")
+    try:
+        with urllib.request.urlopen(request, timeout=10) as reply:
+            data = json.load(reply)
+    except (OSError, ValueError):
+        return []
+    return [{"number": p["number"], "branch": p["head"]["ref"], "author": p["user"]["login"]} for p in data]
+
+
+def pull_claims(pulls: list[dict], ids) -> dict[str, dict]:
+    """The pull request that holds each item: the earliest open one whose branch is named after the item."""
+    held: dict[str, dict] = {}
+    for pull in sorted(pulls, key=lambda p: p["number"]):
+        if pull["branch"] in ids and pull["branch"] not in held:
+            held[pull["branch"]] = pull
+    return held
+
+
+def earlier_claim(pulls: list[dict], branch: str, own_number: int) -> dict | None:
+    """An open pull request for the same item that was opened before this one, if any."""
+    return next((p for p in sorted(pulls, key=lambda p: p["number"])
+                 if p["branch"] == branch and p["number"] < own_number), None)
+
+
+def claims(items: dict[str, dict], pulls: list[dict], offline: bool = False) -> dict[str, dict]:
+    """Claimed items: those with a remote branch or an open pull request named after them, plus the current
+    branch's own item.
 
     A claimed item is read from its branch, where the owner and any extra `touches` are recorded.
     """
@@ -80,6 +123,15 @@ def claims(items: dict[str, dict], offline: bool = False) -> dict[str, dict]:
         if key in heads:
             shown = git("show", f"origin/{key}:board/{key}.md")
             out[key] = parse(shown.stdout, f"{key}.md") if shown.returncode == 0 else items[key]
+    for key, pull in pull_claims(pulls, items).items():
+        if key in out:
+            continue
+        item = items[key]
+        if git("fetch", "--quiet", "origin", f"pull/{pull['number']}/head").returncode == 0:
+            shown = git("show", f"FETCH_HEAD:board/{key}.md")
+            if shown.returncode == 0:
+                item = parse(shown.stdout, f"{key}.md")
+        out[key] = {**item, "owner": item["owner"] or pull["author"]}
     here = current_branch()
     if here in items:
         out[here] = items[here]
@@ -102,9 +154,13 @@ def overlap(a: dict, b: dict, files: list[str]) -> list[str]:
     return sorted(hits)
 
 
-def check(items: dict[str, dict], claimed: dict[str, dict]) -> list[str]:
+def check(items: dict[str, dict], claimed: dict[str, dict], pulls: list[dict] = ()) -> list[str]:
     errors = []
     here = current_branch()
+    own = re.match(r"refs/pull/(\d+)/", os.environ.get("GITHUB_REF", ""))  # set when run for a pull request
+    rival = earlier_claim(list(pulls), here, int(own.group(1))) if own and here in items else None
+    if rival:
+        errors.append(f"{here} is already held by pull request #{rival['number']} (@{rival['author']})")
     for key, it in items.items():
         where = it["_file"]
         missing = [f for f in FIELDS if f not in it]
@@ -231,8 +287,9 @@ if __name__ == "__main__":
     parser.add_argument("--offline", action="store_true", help="do not fetch; use the last known remote branches")
     args = parser.parse_args()
     board = load()
-    held = claims(board, args.offline)
-    problems = check(board, held)
+    pulls = [] if args.offline else open_pulls(remote_slug())
+    held = claims(board, pulls, args.offline)
+    problems = check(board, held, pulls)
     if args.command == "diff" and not problems:
         problems = diff(board, args.base, args.item)
     if args.command == "status" and not problems:
