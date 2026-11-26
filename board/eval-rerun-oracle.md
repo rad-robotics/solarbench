@@ -6,8 +6,8 @@ milestone: v1
 priority: core
 needs: gpu
 size: small
-status: todo
-owner: ""
+status: doing
+owner: spartacosan
 depends_on: []
 touches:
   - "results/*/oracle_test_*"
