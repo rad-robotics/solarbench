@@ -6,8 +6,8 @@ milestone: v1
 priority: core
 needs: cpu
 size: small
-status: todo
-owner: ""
+status: doing
+owner: spartacosan
 depends_on: []
 touches:
   - "solarbench/eval/margin.py"
