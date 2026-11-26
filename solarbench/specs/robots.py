@@ -57,6 +57,13 @@ UR16E_VELOCITY = {
 }
 UR16E_PAYLOAD = P(16.0, "kg", "https://www.universal-robots.com/products/ur16e/", note="includes the tool")
 UR16E_FLANGE_D6 = P(0.1165, "m", SRC_UR16E, "DERIVED", "wrist_2 -> wrist_3 offset in ur16e.usd; flange at wrist_3")
+# force-torque sensor built into the tool flange; the same range and precision on each axis
+SRC_UR16E_FT = ("https://www.universal-robots.com/media/1819035/ur16e-tech-spec_tcn_202105.pdf, "
+                "'Force sensing, tool flange/torque sensor'")
+UR16E_FT_FORCE_RANGE = P(160.0, "N", SRC_UR16E_FT)
+UR16E_FT_TORQUE_RANGE = P(10.0, "N*m", SRC_UR16E_FT)
+UR16E_FT_FORCE_PRECISION = P(5.0, "N", SRC_UR16E_FT, note="the sheet does not say what precision means statistically")
+UR16E_FT_TORQUE_PRECISION = P(0.2, "N*m", SRC_UR16E_FT)
 
 # --- Clearpath Husky A300 (parked base in T3) -------------------------------------------------------------------
 SRC_HUSKY = "https://clearpathrobotics.com/husky-spec-comparison/ (A300 column)"

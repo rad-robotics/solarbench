@@ -7,6 +7,7 @@ from isaaclab.actuators import ImplicitActuatorCfg
 from isaaclab.assets import ArticulationCfg, AssetBaseCfg, RigidObjectCfg
 from isaaclab.envs import DirectRLEnvCfg
 from isaaclab.scene import InteractiveSceneCfg
+from isaaclab.sensors import JointWrenchSensorCfg
 from isaaclab.sim import RigidBodyMaterialCfg, SimulationCfg
 from isaaclab.utils import configclass
 from isaaclab.visualizers import VisualizerCfg
@@ -17,6 +18,12 @@ from isaaclab_tasks.utils import PresetCfg
 
 from solarbench.specs import FRICTION, LONGI_LR7_72HVD, TABLE_DEFAULT
 from solarbench.specs.params import BOLT
+from solarbench.specs.robots import (
+    UR16E_FT_FORCE_PRECISION,
+    UR16E_FT_FORCE_RANGE,
+    UR16E_FT_TORQUE_PRECISION,
+    UR16E_FT_TORQUE_RANGE,
+)
 from solarbench.tasks.layout import ASSET_ROOT, LowMountLayout, asset_usd
 from solarbench.tasks.robots import ur16e_socket_cfg
 
@@ -59,6 +66,8 @@ class ClampSceneCfg(InteractiveSceneCfg):
         usd_path=asset_usd("husky_a300_parked"), rigid_props=_kinematic),
         init_state=RigidObjectCfg.InitialStateCfg(pos=_HUSKY.pos, rot=_HUSKY.rot))
     robot: ArticulationCfg = ur16e_socket_cfg(pos=_ARM.pos)
+    # reaction wrench at every joint of the arm; the task reads the one that holds the tool (ASSUMPTIONS M12)
+    flange = JointWrenchSensorCfg(prim_path="{ENV_REGEX_NS}/Robot")
     scenery: AssetBaseCfg | None = None
 
     def __post_init__(self):
@@ -98,6 +107,11 @@ class ClampEnvCfg(DirectRLEnvCfg):
     arm_joints: tuple[str, ...] = ("shoulder_pan_joint", "shoulder_lift_joint", "elbow_joint", "wrist_1_joint",
                                    "wrist_2_joint", "wrist_3_joint")
     tool_body: str = "socket_tool"
+    # wrist force-torque sensor: the one built into the UR16e flange (ASSUMPTIONS M12)
+    wrench_force_range: float = float(UR16E_FT_FORCE_RANGE)
+    wrench_torque_range: float = float(UR16E_FT_TORQUE_RANGE)
+    wrench_force_noise: float = float(UR16E_FT_FORCE_PRECISION) / 3  # standard deviation per sample
+    wrench_torque_noise: float = float(UR16E_FT_TORQUE_PRECISION) / 3
     tcp_offset: tuple[float, float, float] = (0.0, 0.0, 0.160)  # socket face on the tool axis (SOCKET_TOOL_LENGTH)
     head_top_offset: float = 0.0016 + float(BOLT.head_height)  # washer + head above the bolt link origin
 

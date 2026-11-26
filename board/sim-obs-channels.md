@@ -16,6 +16,7 @@ touches:
   - "tests/test_channels.py"
   - "ASSUMPTIONS.md"
   - "docs/tasks.md"
+  - "solarbench/specs/robots.py"
 done_when:
   - "tools/check.sh --gpu"
   - ".venv/bin/python -m pytest -q tests/test_channels.py"
