@@ -6,7 +6,7 @@ milestone: v1
 priority: core
 needs: cpu
 size: small
-status: doing
+status: done
 owner: spartacosan
 depends_on: []
 touches:
@@ -25,3 +25,4 @@ The headline number: how close to the real specification a system still works ha
 
 ## Log
 <!-- Owner only. Newest last. Date and sign each entry. -->
+- 2026-11-26, spartacosan: `margin()` added. Two conventions the method text leaves open are settled in the module and its tests: a crossing outside the tested levels is named by side (`tighter`, `looser`), for the estimate and for either end of the interval; and where pooled rates sit at exactly one half over several levels, the tightest of them is reported.
