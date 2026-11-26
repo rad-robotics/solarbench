@@ -3,7 +3,7 @@ id: audit-invariance
 title: Results do not depend on time step or batch size
 track: audit
 milestone: v1
-priority: stretch
+priority: core
 needs: gpu
 size: small
 status: todo

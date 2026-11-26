@@ -8,7 +8,7 @@ needs: gpu-large
 size: large
 status: todo
 owner: ""
-depends_on: [paper-prereg, contract-result-fields, sim-difficulty-dial, sim-guarded-skills, sim-wire-cameras, agents-endpoint, agents-prompts, agents-serve, agents-skill-tools, eval-latency, eval-margin, eval-tracker, audit-readback, audit-degenerate, infra-container]
+depends_on: [paper-prereg, contract-result-fields, sim-difficulty-dial, sim-guarded-skills, sim-wire-cameras, agents-endpoint, agents-prompts, agents-serve, agents-skill-tools, eval-latency, eval-margin, eval-tracker, audit-readback, audit-degenerate, audit-invariance, eval-paired-episodes, contract-policy-inputs, contract-rankable, infra-container]
 touches:
   - "results/*"
   - "ASSUMPTIONS.md"

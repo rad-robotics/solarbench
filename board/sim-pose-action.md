@@ -24,9 +24,9 @@ done_when:
 The second rung (R2). Reasoning models emit one target pose per round, not small deltas at 30 Hz.
 
 ## What
-- `solarbench/tasks/actions.py`: turn a base-frame pose target into rate-limited steps for the existing IK, under the same joint torque and velocity limits.
-- Config switch `action_mode` on the bolt task: `ee_delta` (today) or `ee_pose`. Task ids for the new mode get their own name; existing ids keep their behaviour.
-- The oracle, replayed through `ee_pose`, still succeeds.
+- `solarbench/tasks/actions.py`: run a `TOOL_POSE` record of `docs/interface.md` as rate-limited steps for the existing IK, under the same joint torque and velocity limits, and write its completion when it arrives, stalls or times out.
+- Profile R2 on the bolt task under a task id of its own; existing ids keep their behaviour.
+- The oracle, replayed as `TOOL_POSE` records, still succeeds.
 
 ## Log
 <!-- Owner only. Newest last. Date and sign each entry. -->

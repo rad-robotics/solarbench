@@ -21,7 +21,7 @@ done_when:
 One adapter serves a local open-weight model and a remote one alike: where the brain runs is a URL.
 
 ## What
-- `solarbench/agents/endpoint.py`: builds the request from the contract observation (prompt, images, proprio, optional wrench), parses one end-effector pose per round.
+- `solarbench/agents/endpoint.py`: builds the request from the selected channels (work order, images, proprio, optional wrench) and turns the reply into one `TOOL_POSE` record per round. The catalogue and the work order go first in the request and do not change within an episode.
 - Base URL, model name and sampling settings come from arguments or environment variables. No key is ever written to a result file.
 - Requests for all environments go out concurrently. Tokens, wall time and parse failures are logged per call into the episode record.
 - Tests run against a local fake server; no GPU or network.

@@ -8,7 +8,7 @@ needs: gpu
 size: large
 status: todo
 owner: ""
-depends_on: [sim-pose-action]
+depends_on: [sim-pose-action, contract-skill-opcodes]
 touches:
   - "solarbench/tasks/skills.py"
   - "solarbench/tasks/clamp_env.py"

@@ -22,7 +22,7 @@ done_when:
 A result is only comparable if it says how it was made. Today a result file records the task, policy, split and provenance, but not which observations were on, how time passed, or which prompt was used.
 
 ## What
-- Add to the result file and to `validate`: observation keys enabled, time mode and per-call delays, difficulty-dial value, prompt hash, model name and whether the endpoint was local or remote.
+- Add to the result file and to `validate`: the selection and its layout hash, time mode and the age of the observation behind each command buffer, difficulty-dial value, prompt hash, the index of each episode, and for a model: name, weights revision and quantisation, server name and version, sampling settings, whether the endpoint was local or remote, the adapter's encoding, and tokens read and written per call.
 - Bump `SCHEMA_VERSION`. Files written under the earlier version stay valid.
 - Update section 4 of `docs/interface.md` to say the fields exist.
 
