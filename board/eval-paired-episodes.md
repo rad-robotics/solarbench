@@ -6,8 +6,8 @@ milestone: v1
 priority: core
 needs: gpu
 size: medium
-status: todo
-owner: ""
+status: doing
+owner: spartacosan
 depends_on: []
 touches:
   - "scripts/evaluate.py"
