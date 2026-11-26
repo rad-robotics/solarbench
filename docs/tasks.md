@@ -16,7 +16,7 @@ Unmate and re-mate an MC4 connector pair hanging under a module.
 - **Action (R1, 8-D).** Δ tool position, Δ rotation (axis-angle), grip, unlock; integral damped-least-squares IK on the 7-DoF right arm.
 - **Observation (privileged, 58-D).** Arm and hand joint state; grasp-point, housing and mouth poses; latch, unlock and grasp flags; hand force on the connector; cable tension; previous action.
 - **Physics.** Newton with the MuJoCo-Warp solver at 600 Hz, policy at 30 Hz. The latch is a constraint on insertion depth: a snap ramp up to the sampled insertion force, rigid while latched, broken above the sampled withdrawal force. The cable is a tension-only tether. See ASSUMPTIONS P4–P6, M1–M7.
-- **Known gaps.** Fixed base. Mating and unmating forces are stand-ins until measured (board: `assets-measure-connector`). On the PhysX backend the oracle succeeds in 56% of episodes against 100% on Newton; insertion at 0.3 mm clearance is where the engines disagree.
+- **Known gaps.** Fixed base. Mating and unmating forces are stand-ins until measured (board: `assets-measure-connector`). On the PhysX backend the oracle succeeds less often than on Newton ([results](../results/RESULTS.md)), always failing at the same stage: re-latching, the insertion at 0.3 mm clearance.
 
 ## Bolt: `SolarBench-T3-ClampTighten-UR16e-v0`, `SolarBench-T3-ClampLoosen-UR16e-v0`
 Tighten a module end-clamp bolt into the manufacturer's torque window, or break it loose and back it off.
@@ -28,7 +28,7 @@ Tighten a module end-clamp bolt into the manufacturer's torque window, or break 
 - **Action (R1, 6-D).** Δ tool position and Δ rotation.
 - **Observation (privileged, 35-D).** Arm joint positions and velocities, tool pose, bolt-head position relative to the tool, bolt axis, bolt angle, the bolt model's required torque at that angle, measured drive torque, the engaged flag, previous action.
 - **Physics.** The bolt is a revolute joint whose dry friction follows a torque–angle model: running torque, clamp-up stiffness, breakaway when loosening. The bolt turns only if the socket, seated on the hex flats, transmits enough torque through contact. Bolt parameters are resampled every episode. See ASSUMPTIONS P7, P21–P24, M8–M11.
-- **Known gaps.** The wrist turns the bolt directly; there is no powered tool with its own torque transducer. The drive torque the policy sees is reconstructed from the wrist-3 controller and stops tracking the bolt torque when socket contact chatters (M11). Base pose and clamp position are fixed. On PhysX the tighten oracle succeeds in 84% of episodes against 100% on Newton, all failures at socket seating.
+- **Known gaps.** The wrist turns the bolt directly; there is no powered tool with its own torque transducer. The drive torque the policy sees is reconstructed from the wrist-3 controller and stops tracking the bolt torque when socket contact chatters (M11). Base pose and clamp position are fixed. On PhysX the oracle succeeds less often than on Newton ([results](../results/RESULTS.md)), failing at socket seating or before the turn is complete.
 
 ## Protocol common to all tasks
 - **Splits.** `dev` seeds for development; `test` seeds are held out, and only `test` results enter tables ([`solarbench/eval/splits.py`](../solarbench/eval/splits.py)).

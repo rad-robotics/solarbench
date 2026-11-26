@@ -32,11 +32,11 @@ The experiment, its hypotheses and its analysis are drafted in [paper/hypotheses
 ## What exists today
 | Task | Task id | Robot | Oracle, Newton | Oracle, PhysX | Damage |
 |---|---|---|---|---|---|
-| Connector: unplug and re-mate an MC4 pair | `SolarBench-T2-MC4-G1-v0` | Unitree G1 humanoid with a Dex3 hand, standing fixed | 128/128 (97%–100%) | 18/32 (39%–72%) | 0 |
-| Bolt: tighten to 14–18 N·m | `SolarBench-T3-ClampTighten-UR16e-v0` | Universal Robots UR16e arm on a parked Clearpath Husky A300 base | 64/64 (94%–100%), 16.0 N·m installed | 27/32 (68%–93%) | 0 |
-| Bolt: break loose, back off ¾ turn | `SolarBench-T3-ClampLoosen-UR16e-v0` | same | 64/64 (94%–100%) | 32/32 (89%–100%) | 0 |
+| Connector: unplug and re-mate an MC4 pair | `SolarBench-T2-MC4-G1-v0` | Unitree G1 humanoid with a Dex3 hand, standing fixed | 127/128 (96%–100%) | 111/128 (80%–92%) | 0 |
+| Bolt: tighten to 14–18 N·m | `SolarBench-T3-ClampTighten-UR16e-v0` | Universal Robots UR16e arm on a parked Clearpath Husky A300 base | 127/128 (96%–100%) | 119/128 (87%–96%) | 0 |
+| Bolt: break loose, back off ¾ turn | `SolarBench-T3-ClampLoosen-UR16e-v0` | same | 128/128 (97%–100%) | 119/128 (87%–96%) | 0 |
 
-Each cell is episodes that met the full specification with no damage, out of episodes run on held-out random seeds, with the 95% interval. The lower PhysX numbers are the two engines disagreeing about tight-clearance contact, not a tuning difference; they are reported as they are. These runs were made before the current record-keeping rule (a result counts only if it came from a committed, unmodified copy of the code), so none of them is rankable yet; they will be repeated under it (board: `eval-rerun-oracle`). Details and known gaps are in the [task cards](docs/tasks.md); the full table is in [results/RESULTS.md](results/RESULTS.md).
+Each cell is episodes that met the full specification with no damage, out of episodes run on held-out random seeds, with the 95% interval. The lower PhysX numbers are the two engines disagreeing about tight-clearance contact, not a tuning difference; they are reported as they are. Every cell is rankable: it came from a committed, unmodified copy of the code, and the commit is in the result file. Details and known gaps are in the [task cards](docs/tasks.md); the full table, with the earlier runs these replace, is in [results/RESULTS.md](results/RESULTS.md).
 
 Also here: seven OpenUSD assets generated from datasheet values and passing SimReady validation, and an [atlas](atlas/README.md) of 107 maintenance tasks coded by the physical skills they need.
 
