@@ -8,7 +8,7 @@ needs: cpu
 size: medium
 status: todo
 owner: ""
-depends_on: [contract-interface]
+depends_on: [contract-interface, contract-harness-catalogue]
 touches:
   - "solarbench/agents/endpoint.py"
   - "tests/test_endpoint.py"
