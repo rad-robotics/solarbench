@@ -44,7 +44,7 @@ from isaaclab_tasks.utils import resolve_task_config  # noqa: E402
 import solarbench.tasks  # noqa: E402, F401
 from solarbench.agents import make_policy  # noqa: E402
 from solarbench.eval.schema import SCHEMA_VERSION, result_path  # noqa: E402
-from solarbench.eval.splits import SPLITS  # noqa: E402
+from solarbench.eval.splits import SPLITS, first_episodes  # noqa: E402
 from solarbench.eval.stats import summarize  # noqa: E402
 
 
@@ -89,13 +89,12 @@ with launch_simulation(env_cfg, args):
     STAGES = u.stages
     obs, _ = env.reset()
     policy = make_policy(args.policy, args.task, u)
-    while len(u.completed_episodes) < args.episodes:
+    while (records := first_episodes(u.completed_episodes, args.episodes)) is None:
         with torch.inference_mode():
             obs, _, term, trunc, _ = env.step(policy.act(obs))
             done = (term | trunc).nonzero(as_tuple=False).squeeze(-1)
             if len(done):
                 policy.reset(done)
-    records = u.completed_episodes[: args.episodes]
     result = {
         "schema_version": SCHEMA_VERSION,
         "task": args.task,

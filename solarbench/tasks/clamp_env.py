@@ -26,6 +26,7 @@ from isaaclab.utils.math import (
     subtract_frame_transforms,
 )
 
+from solarbench.eval.splits import episode_draws
 from solarbench.specs.params import BOLT
 from solarbench.tasks.bolt import BoltParams, bolt_friction
 
@@ -89,6 +90,8 @@ class ClampEnv(DirectRLEnv):
         self.peak_tau = torch.zeros(n, device=dev)
         self.vel_violation_steps = torch.zeros(n, device=dev)
         self._rewarded = torch.zeros(n, 4, dtype=torch.bool, device=dev)
+        self.episode_index = torch.zeros(n, dtype=torch.long, device=dev)
+        self._episodes_started = 0
         self.completed_episodes: list[dict] = []
 
     # ------------------------------------------------------------------ frames
@@ -247,6 +250,7 @@ class ClampEnv(DirectRLEnv):
             rec = {f"t_{s}": float(st[k, i]) for i, s in enumerate(self.stages)}
             rec.update({f"stage_{s}": bool(st[k, i] >= 0) for i, s in enumerate(self.stages)})
             rec.update({
+                "episode": int(self.episode_index[e]),
                 "env_id": e, "sim_error": bool(self.sim_error[e]), "success": success,
                 "damage": bool(self.over_torque[e]), "over_torque": bool(self.over_torque[e]),
                 "safe_success": success and not bool(self.over_torque[e]),
@@ -265,22 +269,32 @@ class ClampEnv(DirectRLEnv):
         for i, s in enumerate(self.stages):
             log[f"Stage/{s}"] = (self.stage_time[env_ids, i] >= 0).float().mean()
 
-    def _uniform(self, env_ids, lo, hi, *shape):
-        return lo + (hi - lo) * torch.rand(len(env_ids), *shape, device=self.device)
+    def _start_episodes(self, env_ids: torch.Tensor) -> torch.Tensor:
+        """Give the episodes starting now their indices; return their draws (eval/splits.py), one row each."""
+        first, self._episodes_started = self._episodes_started, self._episodes_started + len(env_ids)
+        self.episode_index[env_ids] = torch.arange(first, self._episodes_started, device=self.device)
+        draws = episode_draws(self.cfg.seed or 0, range(first, self._episodes_started), 12)
+        return torch.as_tensor(draws, dtype=torch.float32, device=self.device)
 
-    def _sample_episode(self, env_ids: torch.Tensor) -> None:
-        """Per-episode bolt variation within the assumed ranges (installed torque, stack stiffness, thread friction)."""
+    def _sample_episode(self, env_ids: torch.Tensor, u: torch.Tensor) -> None:
+        """Per-episode bolt variation within the assumed ranges (installed torque, stack stiffness, thread friction).
+
+        Each parameter reads its own column of ``u``; columns 6 to 11 are the arm's starting offset.
+        """
         c, b = self.cfg, self.bp
-        b.tau_run[env_ids] = self._uniform(env_ids, *c.running_torque_range)
-        snug_angle = self._uniform(env_ids, *c.snug_to_spec_angle_range)
-        b.stiffness[env_ids] = (c.tau_install - b.tau_run[env_ids]) / snug_angle
-        b.breakaway_ratio[env_ids] = self._uniform(env_ids, *c.breakaway_ratio_range)
-        b.nut_factor[env_ids] = self._uniform(env_ids, *c.nut_factor_range)
+
+        def between(bounds, column):
+            return bounds[0] + (bounds[1] - bounds[0]) * u[:, column]
+
+        b.tau_run[env_ids] = between(c.running_torque_range, 0)
+        b.stiffness[env_ids] = (c.tau_install - b.tau_run[env_ids]) / between(c.snug_to_spec_angle_range, 1)
+        b.breakaway_ratio[env_ids] = between(c.breakaway_ratio_range, 2)
+        b.nut_factor[env_ids] = between(c.nut_factor_range, 3)
         if c.mode == "loosen":
-            self.tau_install[env_ids] = self._uniform(env_ids, *c.tau_install_range)
+            self.tau_install[env_ids] = between(c.tau_install_range, 4)
             self.theta0[env_ids] = (self.tau_install[env_ids] - b.tau_run[env_ids]) / b.stiffness[env_ids]
         else:  # loose start; the angle also sets the hex phase the socket has to find
-            self.theta0[env_ids] = self._uniform(env_ids, *c.start_theta_tighten_range)
+            self.theta0[env_ids] = between(c.start_theta_tighten_range, 5)
 
     def _reset_idx(self, env_ids: Sequence[int] | None) -> None:
         if env_ids is None:
@@ -288,9 +302,10 @@ class ClampEnv(DirectRLEnv):
         env_ids = torch.as_tensor(env_ids, device=self.device)
         self._record(env_ids)
         super()._reset_idx(env_ids)
-        self._sample_episode(env_ids)
+        u = self._start_episodes(env_ids)
+        self._sample_episode(env_ids, u)
         q = self.robot.data.default_joint_pos.torch[env_ids].clone()
-        q[:, self.arm_ids] += self._uniform(env_ids, -self.cfg.arm_init_noise, self.cfg.arm_init_noise, 6)
+        q[:, self.arm_ids] += (2 * u[:, 6:12] - 1) * self.cfg.arm_init_noise
         self.robot.write_joint_position_to_sim_index(position=q, env_ids=env_ids)
         self.robot.write_joint_velocity_to_sim_index(velocity=torch.zeros_like(q), env_ids=env_ids)
         qc = self.clamp.data.default_joint_pos.torch[env_ids].clone()

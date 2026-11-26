@@ -22,10 +22,10 @@ from isaaclab.utils.math import (
     quat_from_angle_axis,
     quat_inv,
     quat_mul,
-    sample_uniform,
     subtract_frame_transforms,
 )
 
+from solarbench.eval.splits import episode_draws
 from solarbench.specs import MC4
 from solarbench.tasks.latch import LatchParams, LatchState, latch_step
 
@@ -104,7 +104,8 @@ class MC4Env(DirectRLEnv):
         self.cable_overpull = torch.zeros(n, dtype=torch.bool, device=dev)
         self.sim_error = torch.zeros(n, dtype=torch.bool, device=dev)
         self.vel_violation_steps = torch.zeros(n, device=dev)
-        self.episode_seeds = torch.zeros(n, dtype=torch.long, device=dev)
+        self.episode_index = torch.zeros(n, dtype=torch.long, device=dev)
+        self._episodes_started = 0
         self.completed_episodes: list[dict] = []
         self._rewarded = torch.zeros(n, len(STAGES), dtype=torch.bool, device=dev)
         self._cables = self._init_cable_drawing() if cfg.show_cables else None
@@ -378,7 +379,7 @@ class MC4Env(DirectRLEnv):
             rec.update(
                 {
                     "env_id": e,
-                    "seed": int(self.episode_seeds[e]),
+                    "episode": int(self.episode_index[e]),
                     "sim_error": bool(self.sim_error[e]),
                     "success": bool(st[k, -1] >= 0),
                     "damage": bool(dmg[k]),
@@ -418,10 +419,15 @@ class MC4Env(DirectRLEnv):
         self.female.write_root_velocity_to_sim_index(
             root_velocity=torch.zeros(k, 6, device=self.device), env_ids=env_ids
         )
+        # Each episode's latch forces depend on the seed and the episode's index alone (eval/splits.py).
+        first, self._episodes_started = self._episodes_started, self._episodes_started + k
+        self.episode_index[env_ids] = torch.arange(first, self._episodes_started, device=self.device)
+        draws = episode_draws(self.cfg.seed or 0, range(first, self._episodes_started), 2)
+        u = torch.as_tensor(draws, dtype=torch.float32, device=self.device)
         lo, hi = self.cfg.insertion_force_range
-        f_ins = sample_uniform(lo, hi, (k,), self.device)
+        f_ins = lo + (hi - lo) * u[:, 0]
         lo, hi = self.cfg.withdrawal_force_range
-        f_wd = sample_uniform(lo, hi, (k,), self.device)
+        f_wd = lo + (hi - lo) * u[:, 1]
         self.latch.reset(env_ids, torch.ones(k, dtype=torch.bool, device=self.device), f_ins, f_wd)
 
         self.stage_time[env_ids] = -1.0
@@ -436,7 +442,6 @@ class MC4Env(DirectRLEnv):
         self.hand_q_des[env_ids] = self.hand_open[env_ids]
         self.unlock_cmd[env_ids] = False
         self.grasp_score[env_ids] = 0.0
-        self.episode_seeds[env_ids] = torch.randint(0, 2**31 - 1, (k,), device=self.device)
         self.ik.reset(env_ids)
         self._reset_targets(env_ids)
 
