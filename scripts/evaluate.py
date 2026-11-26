@@ -5,9 +5,12 @@ Runs a policy for a fixed number of episodes on a seed split and writes a self-d
 
 Policies are selected by name (see solarbench/agents for the contract and how to add one):
     oracle            scripted privileged-state controller: the ceiling for a robot, not a contestant
-    zero              zero actions: the floor
-    jit:<path>        TorchScript policy mapping the "policy" observation to actions,
+    zero              sends no command: the floor
+    jit:<path>        TorchScript policy mapping the privileged "policy" channel to actions,
                       e.g. the policy.pt that `isaaclab play` exports next to an RSL-RL checkpoint
+
+A policy is built from the task's catalogue and handed the channels it selected, nothing else. Whether the result
+is privileged is read from that selection (docs/interface.md, section 2).
 
 Usage:
     .venv/bin/python scripts/evaluate.py --policy oracle --split test --episodes 200 --num_envs 16 --viz none
@@ -42,6 +45,7 @@ import torch  # noqa: E402
 from isaaclab_tasks.utils import resolve_task_config  # noqa: E402
 
 import solarbench.tasks  # noqa: E402, F401
+from solarbench import wire  # noqa: E402
 from solarbench.agents import make_policy  # noqa: E402
 from solarbench.eval.schema import SCHEMA_VERSION, result_path  # noqa: E402
 from solarbench.eval.splits import SPLITS, first_episodes  # noqa: E402
@@ -77,6 +81,27 @@ def provenance(env_cfg) -> dict:
     }
 
 
+def catalogue_of(task: str, u) -> dict:
+    """What a registered ``-v0`` task offers (docs/interface.md, section 2): profile R1, and besides the clock one
+    channel, the privileged state vector."""
+    return {
+        "wire": list(wire.VERSION), "task": task, "tick_hz": round(1 / u.step_dt),
+        "opcodes": [wire.TOOL_DELTA], "max_depth": 1, "wake": ["tick"],
+        "channels": [
+            {"id": wire.CLOCK_ID, "name": "clock", "dtype": "clock", "shape": []},
+            {"id": 5, "name": "policy", "dtype": "f4", "shape": [u.cfg.observation_space], "privileged": True},
+        ],
+    }
+
+
+def frame(u, obs: dict, layout: wire.Layout) -> dict:
+    """The channels the policy selected, by name. The clock is the tick and the flags, as two 32-bit integers."""
+    tick = u.episode_length_buf.int()
+    flags = wire.AWAKE + wire.FIRST * (tick == 0).int()
+    offered = {**obs, "clock": torch.stack([tick, flags], dim=-1)}
+    return {name: offered[name] for name, _, _ in layout.blocks}
+
+
 split = SPLITS[args.split]
 env_cfg, _ = resolve_task_config(args.task, "")
 env_cfg.scene.num_envs = args.num_envs
@@ -88,10 +113,12 @@ with launch_simulation(env_cfg, args):
     u = env.unwrapped
     STAGES = u.stages
     obs, _ = env.reset()
-    policy = make_policy(args.policy, args.task, u)
+    policy, layout = make_policy(args.policy, catalogue_of(args.task, u), u)
+    hold = torch.zeros(u.num_envs, u.cfg.action_space, device=u.device)  # no command: zero motion for one tick
     while (records := first_episodes(u.completed_episodes, args.episodes)) is None:
         with torch.inference_mode():
-            obs, _, term, trunc, _ = env.step(policy.act(obs))
+            action = policy.act(frame(u, obs, layout))
+            obs, _, term, trunc, _ = env.step(hold if action is None else action)
             done = (term | trunc).nonzero(as_tuple=False).squeeze(-1)
             if len(done):
                 policy.reset(done)
@@ -99,7 +126,7 @@ with launch_simulation(env_cfg, args):
         "schema_version": SCHEMA_VERSION,
         "task": args.task,
         "policy": args.policy,
-        "privileged": policy.privileged,
+        "privileged": layout.privileged,
         "split": args.split,
         "tag": args.tag,
         "provenance": provenance(env_cfg),

@@ -26,7 +26,8 @@ The board tool alone needs only `pyyaml`.
 
 ## A model or controller (a "brain")
 - One file, `solarbench/agents/<name>.py`, registering a factory with `@register("<name>")`. See the contract at the top of [`solarbench/agents/__init__.py`](solarbench/agents/__init__.py).
-- It reads only the observation keys in [docs/interface.md](docs/interface.md). If it reads simulator state, it sets `privileged = True`.
+- It names the channels it reads as a selection from the task's catalogue ([docs/interface.md](docs/interface.md), section 2) and is handed those and nothing else. If it selects a privileged channel, its result is recorded as privileged and it is given the environment; a policy cannot declare this itself.
+- This closes the accidental path to simulator state, not a determined one: a policy runs in the harness's process, where code can reach anything. Running a policy in a process of its own is part of the board item `open-hidden-split`.
 - A unit test that runs without a GPU or a network.
 - Results come from `scripts/evaluate.py --policy <name> --split test`, from a clean tree.
 

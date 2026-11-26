@@ -1,18 +1,23 @@
 """Policies ("brains") and the one contract all of them implement.
 
-A policy maps the observation the environment returns to an action tensor. Everything that drives a robot
-in SolarBench goes through this interface: the scripted oracle, a zero-action floor, an exported network,
-and (via adapters added here) vision-language-action models and language models behind an HTTP endpoint.
+A policy says which channels it reads, as a selection from the task's catalogue (docs/interface.md, section 2),
+and maps a frame of those channels to commands. Everything that drives a robot in SolarBench goes through this
+interface: the scripted oracle, a floor that sends nothing, an exported network, and (via adapters added here)
+vision-language-action models and language models behind an HTTP endpoint.
 
 Contract
 --------
-``act(obs)`` receives the dict returned by ``env.step`` / ``env.reset`` and returns a float tensor of shape
-``(num_envs, action_dim)`` on the environment's device. ``reset(env_ids)`` is called with the indices of the
-environments that just finished an episode. A policy must not touch the simulator through any other path,
-unless it declares ``privileged = True``; privileged results are reported as a hardware ceiling, never
-ranked against sensor-only policies.
+A factory ``f(arg, catalogue) -> Policy`` is given what the task offers and nothing else. The policy's
+``selection`` names the channels it wants. ``act(obs)`` then receives exactly those, as a dict from channel name
+to a tensor with one row per environment (``clock`` is always among them), and returns the R1 argument tensor of
+shape ``(environments, arguments)`` on the same device, or ``None`` to send no command, in which case the robot
+holds. ``reset(env_ids)`` is called with the indices of the environments that just finished an episode.
 
-Adding a policy: create ``solarbench/agents/<name>.py`` containing a factory ``f(arg, task, env) -> Policy``
+Whether a result is privileged is read from the selection; a policy cannot declare it. A policy that selects a
+privileged channel is recorded as privileged, and it alone is handed the environment, through ``attach(env)``.
+Privileged results are reported as a hardware ceiling, never ranked against sensor-only policies.
+
+Adding a policy: create ``solarbench/agents/<name>.py`` containing a factory ``f(arg, catalogue) -> Policy``
 decorated with ``@register("<name>")``. The module is imported on first use, so no shared file needs editing.
 It is then selectable as ``--policy <name>`` or ``--policy <name>:<arg>``.
 """
@@ -27,18 +32,20 @@ from typing import Protocol, runtime_checkable
 
 import torch
 
+from solarbench.wire import Layout
+
 
 @runtime_checkable
 class Policy(Protocol):
     name: str  # label written to result files
-    privileged: bool  # True if it reads simulator state beyond the observation
+    selection: dict  # the channels it reads (docs/interface.md, section 2)
 
     def reset(self, env_ids: torch.Tensor) -> None: ...
 
-    def act(self, obs: dict[str, torch.Tensor]) -> torch.Tensor: ...
+    def act(self, obs: dict[str, torch.Tensor]) -> torch.Tensor | None: ...
 
 
-Factory = Callable[[str, str, object], Policy]
+Factory = Callable[[str, dict], Policy]
 _REGISTRY: dict[str, Factory] = {}
 
 
@@ -56,8 +63,19 @@ def available() -> list[str]:
     return sorted(_REGISTRY)
 
 
-def make_policy(spec: str, task: str, env) -> Policy:
-    """Build a policy from ``name`` or ``name:arg`` for the unwrapped environment ``env``."""
+def select(catalogue: dict, *names: str) -> dict:
+    """A selection of the named channels of ``catalogue``."""
+    ids = {channel["name"]: channel["id"] for channel in catalogue["channels"]}
+    if missing := [name for name in names if name not in ids]:
+        raise KeyError(f"{catalogue['task']} does not offer {missing}; it offers {sorted(ids)}")
+    return {"channels": [{"id": ids[name]} for name in names]}
+
+
+def make_policy(spec: str, catalogue: dict, env) -> tuple[Policy, Layout]:
+    """Build a policy from ``name`` or ``name:arg``, and the layout of the frames it selected.
+
+    ``env`` is the unwrapped environment. The policy is given it only if it selected a privileged channel.
+    """
     name, _, arg = spec.partition(":")
     if name not in _REGISTRY and name.isidentifier():
         module = f"{__name__}.{name}"
@@ -68,33 +86,40 @@ def make_policy(spec: str, task: str, env) -> Policy:
                 raise
     if name not in _REGISTRY:
         raise KeyError(f"unknown policy {name!r}; available: {', '.join(available())}")
-    return _REGISTRY[name](arg, task, env)
+    policy = _REGISTRY[name](arg, catalogue)
+    layout = Layout(catalogue, policy.selection)
+    if layout.privileged:
+        policy.attach(env)
+    return policy, layout
 
 
 class ZeroPolicy:
-    """Zero actions: the floor. A task on which this succeeds has a broken success check."""
+    """Sends no command, so the robot holds: the floor. A task on which this succeeds has a broken success check."""
 
-    name, privileged = "zero", False
+    name = "zero"
 
-    def __init__(self, env):
-        self._shape, self._device = (env.num_envs, env.cfg.action_space), env.device
+    def __init__(self, catalogue: dict):
+        self.selection = select(catalogue)
 
     def reset(self, env_ids):
         pass
 
     def act(self, obs):
-        return torch.zeros(self._shape, device=self._device)
+        return None
 
 
 class OraclePolicy:
     """Scripted controller that reads exact simulator state: the ceiling for a robot, not a contestant."""
 
-    name, privileged = "oracle", True
+    name = "oracle"
 
-    def __init__(self, task: str, env):
+    def __init__(self, catalogue: dict):
+        self.selection, self._task = select(catalogue, "policy"), catalogue["task"]
+
+    def attach(self, env):
         from solarbench.oracle import make_oracle
 
-        self._oracle = make_oracle(task, env)
+        self._oracle = make_oracle(self._task, env)
 
     def reset(self, env_ids):
         self._oracle.reset(env_ids)
@@ -104,13 +129,14 @@ class OraclePolicy:
 
 
 class JitPolicy:
-    """TorchScript network mapping the ``policy`` observation to actions (e.g. an RSL-RL export)."""
+    """TorchScript network mapping the privileged ``policy`` channel to actions (e.g. an RSL-RL export)."""
 
-    privileged = False
-
-    def __init__(self, path: str, env):
-        self._net = torch.jit.load(path, map_location=env.device).eval()
+    def __init__(self, path: str, catalogue: dict):
+        self.selection, self._path = select(catalogue, "policy"), path
         self.name = "jit-" + Path(path).parent.parent.name
+
+    def attach(self, env):
+        self._net = torch.jit.load(self._path, map_location=env.device).eval()
 
     def reset(self, env_ids):
         if hasattr(self._net, "reset"):  # recurrent exports reset per env; stateless exports take no arguments
@@ -121,6 +147,6 @@ class JitPolicy:
         return self._net(obs["policy"])
 
 
-register("zero")(lambda arg, task, env: ZeroPolicy(env))
-register("oracle")(lambda arg, task, env: OraclePolicy(task, env))
-register("jit")(lambda arg, task, env: JitPolicy(arg, env))
+register("zero")(lambda arg, catalogue: ZeroPolicy(catalogue))
+register("oracle")(lambda arg, catalogue: OraclePolicy(catalogue))
+register("jit")(lambda arg, catalogue: JitPolicy(arg, catalogue))
