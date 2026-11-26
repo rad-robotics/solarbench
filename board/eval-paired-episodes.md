@@ -6,7 +6,7 @@ milestone: v1
 priority: core
 needs: gpu
 size: medium
-status: doing
+status: done
 owner: spartacosan
 depends_on: []
 touches:
@@ -32,3 +32,4 @@ A run keeps the first N episodes to finish across the parallel environments, and
 
 ## Log
 <!-- Owner only. Newest last. Date and sign each entry. -->
+- 2026-11-26, spartacosan: done. On the bolt task (dev split, 12 episodes, 8 environments) the oracle and the zero policy recorded identical sampled parameters for every episode index, 12 distinct sets; the oracle succeeded safely in 12 of 12 and the zero policy in 0 of 12. Not done here: the size of the old sampling bias has not been measured. It needs a run with the GPU to itself and will be added to this log.
