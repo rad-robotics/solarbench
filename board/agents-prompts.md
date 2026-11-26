@@ -6,8 +6,8 @@ milestone: v1
 priority: core
 needs: cpu
 size: small
-status: todo
-owner: ""
+status: doing
+owner: spartacosan
 depends_on: [contract-interface]
 touches:
   - "solarbench/agents/prompts/*"
