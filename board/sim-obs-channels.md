@@ -6,8 +6,8 @@ milestone: v1
 priority: core
 needs: gpu
 size: medium
-status: todo
-owner: ""
+status: doing
+owner: spartacosan
 depends_on: [contract-interface]
 touches:
   - "solarbench/tasks/channels.py"
