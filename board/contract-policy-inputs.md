@@ -6,7 +6,7 @@ milestone: v1
 priority: core
 needs: cpu
 size: small
-status: doing
+status: done
 owner: spartacosan
 depends_on: [contract-interface]
 touches:
@@ -30,3 +30,4 @@ The policy factory receives the environment object, which holds the simulator st
 
 ## Log
 <!-- Owner only. Newest last. Date and sign each entry. -->
+- 2026-11-26, spartacosan: done. A factory is given the catalogue; `make_policy` reads `privileged` from the layout of the policy's selection and calls `attach(env)` only then. The zero policy now sends no command, which the evaluator runs as zero motion, so it needs to know nothing about the task. GPU check on the bolt and the connector: oracle 8/8 on both and recorded as privileged, zero policy 0/8 and recorded as not privileged. Until a task publishes its own catalogue, the evaluator writes the one every `-v0` task has (the clock and the privileged state vector), so no sensor-only policy can be run yet (`contract-harness-catalogue`).
