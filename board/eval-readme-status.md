@@ -6,7 +6,7 @@ milestone: v1
 priority: core
 needs: none
 size: small
-status: doing
+status: done
 owner: spartacosan
 depends_on: []
 touches:
@@ -27,3 +27,4 @@ The README says no learned or language model has been evaluated and that force f
 
 ## Log
 <!-- Owner only. Newest last. Date and sign each entry. -->
+- 2026-11-27, spartacosan: done. Three statements changed in the README. The exploratory runs are described without figures because none of them has a result file; `paper/hypotheses.md` still says it is frozen before any model result exists and belongs to `paper-prereg`, which should record these runs when it freezes.
