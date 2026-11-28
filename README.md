@@ -11,14 +11,14 @@ Building and maintaining solar plants is limited by skilled labour. Much of that
 
 Both clips are a hand-written controller running in simulation, with the measured values on screen. They show the tasks and how they are scored.
 
-**Status: early.** Two tasks, the connector and the bolt (in both directions), run end to end with a hand-written controller. No learned or language model has been evaluated yet; that is the experiment being built now.
+**Status: early.** Two tasks, the connector and the bolt (in both directions), run end to end with a hand-written controller. Language models have begun to drive the robots in exploratory runs on a contributor's fork ([notes](https://github.com/psyberLC/solarbench/blob/7bd1c4b99e73f013bf062a754516e4b4da005931/NOTES/SKILLS_REPORT.md)). On the bolt, an open model choosing among closed-loop skills finished most development episodes to specification, and Claude finished it through lower-level commands with privileged readings; a small quantised model never seated the socket. On the connector the model only chooses the order of the oracle's steps. Those runs use development episodes and setups easier than the tasks here, and have no result file in this repository, so they are not in the table below. The controlled experiment is being built now.
 
 ## The question being asked first
 Models that reason can now drive robot arms, and do well until the task is decided by contact. In those evaluations the model is given no sense of force.
 
 > Does giving a model the sense of force close the contact gap, and where does contact fail: in the body, in the model, or in the interface between them?
 
-The experiment, its hypotheses and its analysis are drafted in [paper/hypotheses.md](paper/hypotheses.md) and are frozen before any language model is run.
+The experiment, its hypotheses and its analysis are drafted in [paper/hypotheses.md](paper/hypotheses.md) and are frozen before any of its runs. The exploratory runs above are not part of it.
 
 ## What makes a result here mean something
 - **Success is a physical specification.** A bolt is tightened when its installed torque is inside 14–18 N·m, from the module manufacturer's manual. A connector is mated when its latch has engaged.
@@ -40,7 +40,9 @@ Each cell is episodes that met the full specification with no damage, out of epi
 
 Also here: seven OpenUSD assets generated from datasheet values and passing SimReady validation, and an [atlas](atlas/README.md) of 107 maintenance tasks coded by the physical skills they need.
 
-Not here yet: any model other than the oracle and one short reinforcement-learning run (which fails the task), camera observations, force feedback, and anything on real hardware. The [board](board/README.md) shows what is in progress.
+The bolt task also carries the sensor channels a model would get (joint state, tool pose, wrist force and torque) and a work order in text; the evaluator does not hand them to a policy yet.
+
+Not here yet: a result file for any model other than the oracle and one short reinforcement-learning run (which fails the task), camera observations, and anything on real hardware. The [board](board/README.md) shows what is in progress.
 
 ## Words used here
 | Term | Meaning |
@@ -65,7 +67,7 @@ tools/check.sh                               # lint, unit tests, board
 uv run --extra ovphysx python scripts/evaluate.py --task SolarBench-T3-ClampTighten-UR16e-v0 \
     --policy oracle --split test --episodes 64 --num_envs 16 --viz none
 ```
-The last command takes about 25 minutes on an 8 GB card, prints the success and damage rates with their intervals, and writes a new result file under `results/` (existing files are never overwritten).
+The last command takes about two and a half minutes on an 8 GB card, prints the success and damage rates with their intervals, and writes a new result file under `results/` (existing files are never overwritten).
 - Watch an episode: `uv run --extra ovphysx python scripts/run_oracle.py --viz newton_gl`.
 - Second physics engine: append `physics=ovphysx`.
 - Regenerate the assets from specs: `uv run --extra ovphysx python scripts/build_assets.py`.
