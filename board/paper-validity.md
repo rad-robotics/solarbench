@@ -24,7 +24,7 @@ A review of 445 language-model benchmarks found that what they measure, their ta
   - Success as a written specification, scored by a signed margin: SPECOLA [P] https://arxiv.org/abs/2610.35730 (also add to `docs/field.md` through `field-watch`)
   - Reporting practice: number of runs, initial conditions, failure modes [P] https://arxiv.org/abs/2409.09491
   - Intervals and episode counts: https://arxiv.org/abs/2108.13264 ; STEP and N-SCORE (see `eval-power`)
-  - Two physics engines: Erez, Tassa and Todorov, ICRA 2015 https://homes.cs.washington.edu/~todorov/papers/ErezICRA15.pdf
+  - Two physics engines: Erez, Tassa and Todorov, ICRA 2015 https://doi.org/10.1109/ICRA.2015.7139807
   - Missions broken into elemental tests: NIST and ASTM E54.09 https://www.nist.gov/node/1118501
   - Audits of the benchmark itself: SWE-bench Verified https://openai.com/index/why-we-no-longer-evaluate-swe-bench-verified/
 
