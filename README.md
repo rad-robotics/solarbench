@@ -11,7 +11,7 @@ Building and maintaining solar plants is limited by skilled labour. Much of that
 
 Both clips are a hand-written controller running in simulation, with the measured values on screen. They show the tasks and how they are scored.
 
-**Status: early.** Two tasks, the connector and the bolt (in both directions), run end to end with a hand-written controller. Language models have begun to drive the arm on the bolt task in exploratory runs: Claude with some success, a small open model without. Those runs are reported by the contributor who made them and have no result file yet, so they are not in the table below. The controlled experiment is being built now.
+**Status: early.** Two tasks, the connector and the bolt (in both directions), run end to end with a hand-written controller. Language models have begun to drive the robots in exploratory runs on a contributor's fork ([notes](https://github.com/psyberLC/solarbench/blob/7bd1c4b99e73f013bf062a754516e4b4da005931/NOTES/SKILLS_REPORT.md)). On the bolt, an open model choosing among closed-loop skills finished most development episodes to specification, and Claude finished it through lower-level commands with privileged readings; a small quantised model never seated the socket. On the connector the model only chooses the order of the oracle's steps. Those runs use development episodes and setups easier than the tasks here, and have no result file in this repository, so they are not in the table below. The controlled experiment is being built now.
 
 ## The question being asked first
 Models that reason can now drive robot arms, and do well until the task is decided by contact. In those evaluations the model is given no sense of force.
@@ -67,7 +67,7 @@ tools/check.sh                               # lint, unit tests, board
 uv run --extra ovphysx python scripts/evaluate.py --task SolarBench-T3-ClampTighten-UR16e-v0 \
     --policy oracle --split test --episodes 64 --num_envs 16 --viz none
 ```
-The last command takes about 25 minutes on an 8 GB card, prints the success and damage rates with their intervals, and writes a new result file under `results/` (existing files are never overwritten).
+The last command takes about two and a half minutes on an 8 GB card, prints the success and damage rates with their intervals, and writes a new result file under `results/` (existing files are never overwritten).
 - Watch an episode: `uv run --extra ovphysx python scripts/run_oracle.py --viz newton_gl`.
 - Second physics engine: append `physics=ovphysx`.
 - Regenerate the assets from specs: `uv run --extra ovphysx python scripts/build_assets.py`.
