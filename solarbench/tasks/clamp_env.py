@@ -40,6 +40,45 @@ if TYPE_CHECKING:
 STAGES = {"tighten": ("engaged", "snug", "in_spec", "released"),
           "loosen": ("engaged", "broken_away", "backed_off", "released")}
 
+# Joint DOF inputs of Newton 1.6.1's SolverMuJoCo._update_joint_dof_properties, minus joint_friction.
+_DOF_INPUTS = ("joint_armature", "joint_damping", "joint_effort_limit", "joint_limit_lower", "joint_limit_upper",
+               "joint_target_ke", "joint_target_kd", "joint_target_mode")
+_DOF_INPUTS_MUJOCO = ("solimpfriction", "solreffriction", "solimplimit", "solreflimit", "limit_margin",
+                      "dof_passive_stiffness", "dof_ref", "dof_springref")
+
+
+def _skip_set_const_on_friction_only_changes() -> None:
+    """Writing the bolt friction every substep flags JOINT_DOF_PROPERTIES, and SolverMuJoCo answers every such flag
+    with a full set_const_0 (~58 ms on an RTX 4060 Laptop, 91% of a profiled run). Friction loss is not an input of
+    set_const_0, so when nothing but joint_friction changed since the last full update, copy the DOF properties and
+    skip the recompute. Any other DOF change still takes the full path, so the physics is unchanged."""
+    import warp as wp
+    from newton._src.solvers.mujoco.solver_mujoco import ModelFlags, SolverMuJoCo
+
+    if getattr(SolverMuJoCo, "_solarbench_fast_friction", False):
+        return
+    full_update = SolverMuJoCo._notify_model_changed
+
+    def inputs(solver) -> list[torch.Tensor]:
+        mj = getattr(solver.model, "mujoco", None)
+        arrays = [getattr(solver.model, k, None) for k in _DOF_INPUTS]
+        arrays += [getattr(mj, k, None) for k in _DOF_INPUTS_MUJOCO] if mj is not None else []
+        return [wp.to_torch(a) for a in arrays if a is not None]
+
+    def notify(self, flags):
+        snap = getattr(self, "_solarbench_dof_snapshot", None)
+        if int(flags) == int(ModelFlags.JOINT_DOF_PROPERTIES) and snap:
+            same = torch.stack([(a == b).all() for a, b in zip(inputs(self), snap, strict=True)]).all()
+            if bool(same):  # one device sync per substep
+                self._update_joint_dof_properties()
+                self._invalidate_contact_fast_path()
+                return
+        full_update(self, flags)
+        self._solarbench_dof_snapshot = [a.clone() for a in inputs(self)]
+
+    SolverMuJoCo._notify_model_changed = notify
+    SolverMuJoCo._solarbench_fast_friction = True
+
 
 class ClampEnv(DirectRLEnv):
     cfg: ClampEnvCfg
@@ -52,6 +91,8 @@ class ClampEnv(DirectRLEnv):
         # Newton/MuJoCo joint friction is one Coulomb value (frictionloss); PhysX splits it into static and dynamic
         # efforts, and dynamic defaults to 0 (the bolt would spin freely once moving), so set both there
         self._split_friction = "newton" not in type(cfg.sim.physics).__name__.lower()
+        if not self._split_friction:
+            _skip_set_const_on_friction_only_changes()
         self.arm_ids = torch.tensor(self.robot.find_joints(list(cfg.arm_joints), preserve_order=True)[0], device=dev)
         self.w3 = self.robot.find_joints("wrist_3_joint")[0][0]
         wcfg = cfg.scene.robot.actuators["wrist"]
