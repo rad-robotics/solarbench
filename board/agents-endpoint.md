@@ -6,8 +6,8 @@ milestone: v1
 priority: core
 needs: cpu
 size: medium
-status: todo
-owner: ""
+status: blocked
+owner: spartacosan
 depends_on: [contract-interface, contract-harness-catalogue]
 touches:
   - "solarbench/agents/endpoint.py"
@@ -28,3 +28,4 @@ One adapter serves a local open-weight model and a remote one alike: where the b
 
 ## Log
 <!-- Owner only. Newest last. Date and sign each entry. -->
+- 2026-11-26, spartacosan: blocked on `contract-harness-catalogue`. The adapter, its tests and `docs/models.md` are written and tested against a stand-in server. Its `reset` takes the work orders of the episodes that start, which the evaluator does not pass until that item is done; and no task offers the profile it speaks until `sim-pose-action`. The call log (wall time, tokens, readable or not) is kept on the policy; writing it into the episode records is `contract-result-fields`.
